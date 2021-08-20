@@ -50,6 +50,7 @@ HKR,,Icon,,-5
 %Intel.F159A.Description%=netuio_Device, PCI\VEN_8086&DEV_159A
 %Intel.F159B.Description%=netuio_Device, PCI\VEN_8086&DEV_159B
 %vmxnet3.Description%=netuio_Device, PCI\VEN_15AD&DEV_07B0
+%ena.Description%=netuio_Device, PCI\VEN_1D0F&DEV_EC20
 
 [netuio_Device.NT]
 CopyFiles=Drivers_Dir
@@ -115,6 +116,7 @@ Intel.F1599.Description = "Intel(R) Ethernet Controller E810-XXV for backplane"
 Intel.F159A.Description = "Intel(R) Ethernet Controller E810-XXV for QSFP"
 Intel.F159B.Description = "Intel(R) Ethernet Controller E810-XXV for SFP"
 vmxnet3.Description = "VMWare Paravirtualized Ethernet v3"
+ena.Description = "ENA Paravirtualized Ethernet"
 netuio.SVCDESC = "netuio Service"
 
 [DMAr.reg]
