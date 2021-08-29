@@ -16,7 +16,8 @@
 /**
  * Print output constants
  */
-#define DPFLTR_NETUIO_INFO_LEVEL   35
+//#define DPFLTR_NETUIO_INFO_LEVEL   35
+#define DPFLTR_NETUIO_INFO_LEVEL   DPFLTR_ERROR_LEVEL
 
 /**
  * WDFDRIVER Events

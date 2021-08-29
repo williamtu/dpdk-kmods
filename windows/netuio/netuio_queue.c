@@ -202,12 +202,17 @@ netuio_evt_IO_in_caller_context(WDFDEVICE  Device,
 
     ctx = netuio_get_context_data(Device);
 
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"enter %s\n", __func__);
+
     WDF_REQUEST_PARAMETERS_INIT(&params);
     WdfRequestGetParameters(Request, &params);
 
     if (params.Type != WdfRequestTypeDeviceControl)
     {
         status = STATUS_INVALID_DEVICE_REQUEST;
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+		"%s wdfrequesttypedevicecontrol\n", __func__);
         goto end;
     }
 
@@ -218,6 +223,8 @@ netuio_evt_IO_in_caller_context(WDFDEVICE  Device,
         status = WdfDeviceEnqueueRequest(Device, Request);
         if (!NT_SUCCESS(status))
         {
+		DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+		"%s enqueuerequest FAILED\n", __func__);
             goto end;
         }
         return;
@@ -226,11 +233,15 @@ netuio_evt_IO_in_caller_context(WDFDEVICE  Device,
     // Return relevant data to the caller
     status = WdfRequestRetrieveOutputBuffer(Request, sizeof(struct device_info), &output_buf, &output_buf_size);
     if (!NT_SUCCESS(status)) {
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"%s retriveooutput FAILED\n", __func__);
         goto end;
     }
 
     status = netuio_map_address_into_user_process(ctx, Request);
     if (!NT_SUCCESS(status)) {
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"%s map_addr_into_user_process FAILED\n", __func__);
         goto end;
     }
 
@@ -242,6 +253,8 @@ netuio_evt_IO_in_caller_context(WDFDEVICE  Device,
 end:
     WdfRequestCompleteWithInformation(Request, status, bytes_returned);
 
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"%s: return %d\n", __func__, status);
     return;
 }
 
@@ -266,6 +279,9 @@ netuio_evt_IO_device_control(WDFQUEUE Queue, WDFREQUEST Request,
     size_t   input_buf_size, output_buf_size;
     size_t  bytes_returned = 0;
 
+DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"XXXXX enter %s\n", __func__);
+
     WDFDEVICE device = WdfIoQueueGetDevice(Queue);
 
     PNETUIO_CONTEXT_DATA  ctx;
@@ -273,6 +289,8 @@ netuio_evt_IO_device_control(WDFQUEUE Queue, WDFREQUEST Request,
 
     if (IoControlCode != IOCTL_NETUIO_PCI_CONFIG_IO)
     {
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+		"IoControlCode error %x\n", IOCTL_NETUIO_PCI_CONFIG_IO);
         status = STATUS_INVALID_DEVICE_REQUEST;
         goto end;
     }
@@ -280,15 +298,22 @@ netuio_evt_IO_device_control(WDFQUEUE Queue, WDFREQUEST Request,
     // First retrieve the input buffer and see if it matches our device
     status = WdfRequestRetrieveInputBuffer(Request, sizeof(struct dpdk_pci_config_io), &input_buf, &input_buf_size);
     if (!NT_SUCCESS(status)) {
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+		"%s: input buffer error %lu\n", __func__, status);
         goto end;
     }
 
-    struct dpdk_pci_config_io *dpdk_pci_io_input = (struct dpdk_pci_config_io *)input_buf;
+    struct dpdk_pci_config_io dpdk_pci_io_input = *(struct dpdk_pci_config_io *)input_buf;
 
-    if (dpdk_pci_io_input->access_size != 1 &&
-        dpdk_pci_io_input->access_size != 2 &&
-        dpdk_pci_io_input->access_size != 4 &&
-        dpdk_pci_io_input->access_size != 8) {
+DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"offset 0x%x size %d\n",
+	dpdk_pci_io_input.offset,
+	dpdk_pci_io_input.access_size);
+
+    if (dpdk_pci_io_input.access_size != 1 &&
+        dpdk_pci_io_input.access_size != 2 &&
+        dpdk_pci_io_input.access_size != 4 &&
+        dpdk_pci_io_input.access_size != 8) {
         status = STATUS_INVALID_PARAMETER;
         goto end;
     }
@@ -296,34 +321,50 @@ netuio_evt_IO_device_control(WDFQUEUE Queue, WDFREQUEST Request,
     // Retrieve output buffer
     status = WdfRequestRetrieveOutputBuffer(Request, sizeof(UINT64), &output_buf, &output_buf_size);
     if (!NT_SUCCESS(status)) {
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"%s: output buffer error, %lu\n", __func__, status);
         goto end;
     }
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"%s: assert\n", __func__);
+
     ASSERT(output_buf_size == OutputBufferLength);
 
-    if (dpdk_pci_io_input->op == PCI_IO_READ) {
+    if (dpdk_pci_io_input.op == PCI_IO_READ) {
         *(UINT64 *)output_buf = 0;
         bytes_returned = ctx->bus_interface.GetBusData(
             ctx->bus_interface.Context,
             PCI_WHICHSPACE_CONFIG,
             output_buf,
-            dpdk_pci_io_input->offset,
-            dpdk_pci_io_input->access_size);
+            dpdk_pci_io_input.offset, // check here!
+            dpdk_pci_io_input.access_size);
+
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"%s: IO READ, offset 0x%x size %d value 0x%llx\n",
+	    __func__,
+            dpdk_pci_io_input.offset,
+            dpdk_pci_io_input.access_size, *(UINT64 *)output_buf);
     }
-    else if (dpdk_pci_io_input->op == PCI_IO_WRITE) {
+    else if (dpdk_pci_io_input.op == PCI_IO_WRITE) {
+	 DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"%s: IO WRITE\n", __func__);
+ 
         // returns bytes written
         bytes_returned = ctx->bus_interface.SetBusData(
             ctx->bus_interface.Context,
             PCI_WHICHSPACE_CONFIG,
-            (PVOID)&dpdk_pci_io_input->data,
-            dpdk_pci_io_input->offset,
-            dpdk_pci_io_input->access_size);
+            (PVOID)&dpdk_pci_io_input.data,
+            dpdk_pci_io_input.offset,
+            dpdk_pci_io_input.access_size);
     }
     else {
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+	"%s: INVALID\n", __func__);
         status = STATUS_INVALID_PARAMETER;
         goto end;
     }
 
-    if (bytes_returned != dpdk_pci_io_input->access_size) {
+    if (bytes_returned != dpdk_pci_io_input.access_size) {
         status = STATUS_INVALID_PARAMETER;
     }
 
