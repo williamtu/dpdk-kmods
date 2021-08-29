@@ -29,14 +29,22 @@ DriverEntry(_In_ PDRIVER_OBJECT DriverObject, _In_ PUNICODE_STRING RegistryPath)
     WDF_OBJECT_ATTRIBUTES_INIT(&attributes);
     WDF_DRIVER_CONFIG_INIT(&config, netuio_evt_device_add);
 
+
+DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+                       "XXX Driver entry \n");
     status = WdfDriverCreate(DriverObject, RegistryPath,
                              &attributes, &config,
                              WDF_NO_HANDLE);
 
     if (!NT_SUCCESS(status)) {
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL, 
+       		"WdfDriverCreate failed %s, status %d\n", __func__, status);
+
         return status;
     }
 
+DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+                       "WdfDriverCreate OK %s, status %d\n", __func__, status);
     return status;
 }
 

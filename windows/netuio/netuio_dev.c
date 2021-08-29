@@ -31,8 +31,9 @@ get_pci_device_info(_In_ WDFOBJECT device)
                                      sizeof(BUS_INTERFACE_STANDARD),
                                      1,
                                      NULL);
-    if (!NT_SUCCESS(status))
+    if (!NT_SUCCESS(status)) {
         return status;
+    }
 
     // Retrieve the B:D:F details of our device
     PDEVICE_OBJECT pdo = NULL;
@@ -41,11 +42,21 @@ get_pci_device_info(_In_ WDFOBJECT device)
         ULONG prop = 0, length = 0;
         status = IoGetDeviceProperty(pdo, DevicePropertyBusNumber, sizeof(ULONG), (PVOID)&ctx->addr.bus_num, &length);
         if (!NT_SUCCESS(status)) {
+
+DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL,
+       "IoGetDeviceProperty %s status %d\n", __func__, status);
+
+
             return status;
         }
 
         status = IoGetDeviceProperty(pdo, DevicePropertyAddress, sizeof(ULONG), (PVOID)&prop, &length);
         if (!NT_SUCCESS(status)) {
+
+DbgPrintEx(DPFLTR_IHVNETWORK_ID,  DPFLTR_ERROR_LEVEL,
+       "IoGetDeviceProperty2 %s status %d\n", __func__, status);
+
+
             return status;
         }
 
@@ -203,15 +214,31 @@ netuio_map_hw_resources(WDFDEVICE Device, WDFCMRESLIST Resources, WDFCMRESLIST R
 
         // Find next CmResourceTypeMemory
         do {
+
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL, 
+       		"%s hw descriptor index %d\n", __func__, next_descriptor);
+
+
             descriptor = WdfCmResourceListGetDescriptor(ResourcesTranslated, next_descriptor);
             next_descriptor++;
 
+
             if (descriptor == NULL) {
-                status = STATUS_DEVICE_CONFIGURATION_ERROR;
+		    if (WdfCmResourceListGetCount(ResourcesTranslated) < next_descriptor) {
+			    status = STATUS_SUCCESS;
+		    } else {
+		            status = STATUS_DEVICE_CONFIGURATION_ERROR;
+		    }
+
+
                 goto end;
             }
         } while ((descriptor->Type != CmResourceTypeMemory) ||
                  !(descriptor->Flags & CM_RESOURCE_MEMORY_BAR));
+
+	DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL, 
+       		"%s BAR index %d\n", __func__, bar_index);
+
 
         // Retrieve and map the BARs
         ctx->bar[bar_index].base_addr.QuadPart = descriptor->u.Memory.Start.QuadPart;
@@ -244,6 +271,9 @@ end:
     if (status != STATUS_SUCCESS) {
         netuio_free_hw_resources(Device);
     }
+
+DbgPrintEx(DPFLTR_IHVNETWORK_ID, DPFLTR_ERROR_LEVEL, 
+       "%s OK\n", __func__);
 
     return status;
 }
