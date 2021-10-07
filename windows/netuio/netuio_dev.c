@@ -206,12 +206,20 @@ netuio_map_hw_resources(WDFDEVICE Device, WDFCMRESLIST Resources, WDFCMRESLIST R
             descriptor = WdfCmResourceListGetDescriptor(ResourcesTranslated, next_descriptor);
             next_descriptor++;
 
+
             if (descriptor == NULL) {
-                status = STATUS_DEVICE_CONFIGURATION_ERROR;
+		    if (WdfCmResourceListGetCount(ResourcesTranslated) < next_descriptor) {
+			    status = STATUS_SUCCESS;
+		    } else {
+		            status = STATUS_DEVICE_CONFIGURATION_ERROR;
+		    }
+
+
                 goto end;
             }
         } while ((descriptor->Type != CmResourceTypeMemory) ||
                  !(descriptor->Flags & CM_RESOURCE_MEMORY_BAR));
+
 
         // Retrieve and map the BARs
         ctx->bar[bar_index].base_addr.QuadPart = descriptor->u.Memory.Start.QuadPart;
